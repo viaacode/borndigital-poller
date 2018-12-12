@@ -11,14 +11,19 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
-	<context:property-placeholder location="${mule.env}.yaml"></context:property-placeholder>
+    <context:property-placeholder properties-ref="YamlProperties"/>
+    <spring:beans>
+        <spring:bean id="YamlProperties" name="YamlProperties" class="org.springframework.beans.factory.config.YamlPropertiesFactoryBean">
+            <spring:property name="resources" value="classpath:${mule.env}.yaml"/>
+        </spring:bean>
+    </spring:beans>
     <amqp:connector name="RabbitMQConnectorPoller" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector">
         <reconnect-forever/>
     </amqp:connector>
     <db:generic-config name="borndigital" url="jdbc:postgresql://${db.host}:${db.port}/${db.database}?password=${db.password}&amp;user=${db.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
     <db:generic-config name="mediahaven" url="jdbc:postgresql://${db.zeticon.host}:${db.zeticon.port}/${db.zeticon.database}?password=${db.zeticon.password}&amp;user=${db.zeticon.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
     <amqp:connector name="RabbitMQConnectoDelete" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector"/>
-    <flow name="pollerTestFlow" processingStrategy="synchronous">
+    <flow name="Main" processingStrategy="synchronous">
         <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
         <logger message="Start polling status of files" level="INFO" doc:name="Start polling status of files"/>
         <db:select config-ref="borndigital" doc:name="Fetch borndigital_ingest_choice_status">
@@ -41,6 +46,7 @@ WHERE (preingest_status IS NOT NULL
 ORDER BY last_event_date ASC
 LIMIT 50;]]></db:parameterized-query>
                 </db:select>
+                <logger message="Nr of records to process: #[payload.size()]" level="INFO" doc:name="Log: Nr of records to process"/>
                 <foreach doc:name="For Each">
                     <choice doc:name="Is preingest_status OK?">
                         <when expression="#[payload.preingest_status.equals('OK')]">
@@ -128,7 +134,7 @@ where id = #[payload.id]]]></db:parameterized-query>
                 </foreach>
             </otherwise>
         </choice>
-        <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(30000);]]></expression-component>
+        <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(600000);]]></expression-component>
         <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
         <amqp:acknowledge-message doc:name="AMQP-0-9 Acknowledge Message"/>
         <catch-exception-strategy doc:name="Catch Exception Strategy">

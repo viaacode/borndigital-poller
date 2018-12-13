@@ -1,0 +1,91 @@
+---
+rabbit: 
+  host: ""
+  port: ""
+  virtualhost: ""
+  username: ""
+  password: ""
+  queuename: ""
+  no_xml: ""
+  move: 
+    host: ""
+    port: ""
+    username: ""
+    password: ""
+    move_requests: ""
+  fxp: 
+    host: ""
+    port: ""
+    username: ""
+    password: ""
+    move_requests: ""
+pid: 
+  host: ""
+  port: ""
+  basepath: ""
+  path: ""
+sensor:
+  host: "1000"
+  port: ""
+  basepath: ""
+  path: ""
+  id: ""
+  username: ""
+  password: ""
+  minfreepercentage: ""
+db: 
+  host: ""
+  port: ""
+  username: ""
+  password: ""
+  database: ""
+  eventstable: ""
+  buffer: ""
+  zeticon: 
+    host: ""
+    port: ""
+    username: ""
+    password: ""
+    database: ""
+    tablename: ""
+ftpDestination: 
+  vrt: 
+    username: ""
+    password: ""
+    host: ""
+    path: ""
+  meise: 
+    username: ""
+    password: ""
+    host: ""
+    path: ""
+  Sidecar: 
+    username: ""
+    password: ""
+    host: ""
+  Collateral: 
+    username: ""
+    password: ""
+    host: ""
+  Metadata: 
+    username: ""
+    password: ""
+    host: ""
+ftp: 
+  failuresFolder: ""
+  Source: 
+    host: ""
+    username: ""
+    password: ""
+    Tape: 
+      username: ""
+      password: ""
+      host: ""
+cp: ""
+mime2ext: 
+  host: ""
+  port: ""
+aspect_ratio_api: 
+  host: ""
+  port: ""
+

@@ -1,4 +1,5 @@
 
+
 # Borndigital Poller
 
 ## Synopsis
@@ -34,6 +35,7 @@ If it is successfully archived on tape or disk, the Essence will be deleted and 
 
 #### Prerequisites
 - Mule Community Edition ESB
+- Add the necessary values in `staging.yaml.example` and rename the file to `production`- or `staging.yaml` .
 
 #### Backend
 

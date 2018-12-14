@@ -100,7 +100,7 @@ deleteRequest.password = flowVars.ftp_password;
 
 return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scripting:script>
                                                         </scripting:component>
-                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
+                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000"  connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
                                                     </foreach>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">

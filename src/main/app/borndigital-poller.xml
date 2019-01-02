@@ -111,7 +111,8 @@ where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('on_tape)]">
-                                                    <logger level="INFO" doc:name="Essence is on tape"/>
+                                                    <logger message="Essence is on tape" level="INFO" doc:name="Essence is on tape"/>
+                                                    <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" doc:name="AMQP-0-9"/>
                                                 </when>
                                                 <otherwise>
                                                     <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>

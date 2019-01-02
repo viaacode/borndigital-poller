@@ -110,6 +110,9 @@ set preingest_status = 'TODO', is_deleted = false, fragment_id = #[flowVars.frag
 where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
+                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_tape)]">
+                                                    <logger level="INFO" doc:name="Essence is on tape"/>
+                                                </when>
                                                 <otherwise>
                                                     <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>
                                                 </otherwise>

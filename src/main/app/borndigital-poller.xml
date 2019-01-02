@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -10,8 +10,7 @@ http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amq
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
-http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
-http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
     <context:property-placeholder properties-ref="YamlProperties"/>
     <spring:beans>
         <spring:bean id="YamlProperties" name="YamlProperties" class="org.springframework.beans.factory.config.YamlPropertiesFactoryBean">
@@ -23,16 +22,8 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
     </amqp:connector>
     <db:generic-config name="borndigital" url="jdbc:postgresql://${db.host}:${db.port}/${db.database}?password=${db.password}&amp;user=${db.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
     <db:generic-config name="mediahaven" url="jdbc:postgresql://${db.zeticon.host}:${db.zeticon.port}/${db.zeticon.database}?password=${db.zeticon.password}&amp;user=${db.zeticon.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
-    <amqp:connector name="RabbitMQConnectoDelete" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector"/>
-    <flow name="PollingMain" initialState="stopped">
-        <poll doc:name="Poll">
-            <fixed-frequency-scheduler frequency="1"  timeUnit="HOURS"/>
-            <logger message="Start via polling" level="INFO" doc:name="Log: Start via polling"/>
-        </poll>
-        <flow-ref name="Main" doc:name="Main"/>
-        <expression-component doc:name="Expr: // Do nothing"><![CDATA[// Do nothing]]></expression-component>
-    </flow>
-    <flow name="Main" processingStrategy="synchronous" initialState="started">
+    <amqp:connector name="RabbitMQConnectorDelete" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector"/>
+    <flow name="Main" processingStrategy="synchronous">
         <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
         <logger message="Start polling status of files" level="INFO" doc:name="Start polling status of files"/>
         <db:select config-ref="borndigital" doc:name="Fetch borndigital_ingest_choice_status">
@@ -58,7 +49,7 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                 <foreach doc:name="For Each">
                     <choice doc:name="Is preingest_status OK?">
                         <when expression="#[payload.preingest_status.equals('OK')]">
-                            <logger message="[#[payload.pid]]: preingest_status OK (seq: #[message.correlationSequence])" level="INFO" doc:name="preingest_status OK"/>
+                            <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file"/>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[select *
@@ -100,7 +91,7 @@ deleteRequest.password = flowVars.ftp_password;
 
 return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scripting:script>
                                                         </scripting:component>
-                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000"  connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
+                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorDelete" doc:name="Send message to delete_requests"/>
                                                     </foreach>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
@@ -142,8 +133,7 @@ where id = #[payload.id]]]></db:parameterized-query>
                 </foreach>
             </otherwise>
         </choice>
-        <logger message="Finished with batch. Sleeping 30 min." level="INFO" doc:name="Finished with batch. Sleeping x min."/>
-        <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(30*60*1000);]]></expression-component>
+        <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(600000);]]></expression-component>
         <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
         <amqp:acknowledge-message doc:name="AMQP-0-9 Acknowledge Message"/>
         <catch-exception-strategy doc:name="Catch Exception Strategy">

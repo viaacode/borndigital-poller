@@ -110,7 +110,7 @@ set preingest_status = 'TODO', is_deleted = false, fragment_id = #[flowVars.frag
 where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
-                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_tape)]">
+                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_tape')]">
                                                     <logger message="Essence is on tape" level="INFO" doc:name="Essence is on tape"/>
                                                     <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" doc:name="AMQP-0-9"/>
                                                 </when>

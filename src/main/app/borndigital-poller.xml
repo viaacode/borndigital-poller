@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
+<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -10,7 +10,8 @@ http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amq
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
-http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
     <context:property-placeholder properties-ref="YamlProperties"/>
     <spring:beans>
         <spring:bean id="YamlProperties" name="YamlProperties" class="org.springframework.beans.factory.config.YamlPropertiesFactoryBean">
@@ -94,6 +95,10 @@ return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scriptin
                                                         <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorDelete" doc:name="Send message to delete_requests"/>
                                                     </foreach>
                                                 </when>
+                                                <when expression="flowVars.mh_result.archive_status.equals('on_disk')]">
+                                                    <logger message="[#[flowVars.file.pid]]: Essence is archived on disk" level="INFO" doc:name="Essence is archived on disk"/>
+                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="HandlingEssenceOnTapeOrDiskFlowRef"/>
+                                                </when>
                                                 <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is deleted" level="INFO" doc:name="Essence is deleted"/>
                                                     <db:update config-ref="borndigital" doc:name="Essence is deleted">
@@ -109,6 +114,11 @@ where id = #[flowVars.file.id]]]></db:parameterized-query>
 set preingest_status = 'TODO', is_deleted = false, fragment_id = #[flowVars.fragment_id], comment = 'Essence has failed to ingest'
 where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
+                                                </when>
+                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_tape')]">
+                                                    <logger level="INFO" doc:name="Essence is on tape"/>
+                                                    <anypoint-mq:no-operation-selected config-ref="" doc:name="Anypoint MQ"/>
+                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="Flow Reference"/>
                                                 </when>
                                                 <otherwise>
                                                     <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>
@@ -140,5 +150,30 @@ where id = #[payload.id]]]></db:parameterized-query>
             <logger message="Catch error" level="INFO" doc:name="Catch"/>
         </catch-exception-strategy>
     </flow>
-    <flow name="MessageEventsFlow"/>
+    <flow name="HandlingEssenceOnTapeOrDisk">
+        <db:update config-ref="borndigital" doc:name="Set archive_status OK, fragment_id">
+            <db:parameterized-query><![CDATA[update sips
+set archive_status = 'OK', fragment_id = #[flowVars.fragment_id], comment = 'File is correct gearchiveerd', is_deleted = false, retry_count = 0, reported = false
+where id = #[flowVars.file.id]]]></db:parameterized-query>
+        </db:update>
+        <set-payload value="#[flowVars.file.message]" doc:name="Set Payload with message"/>
+        <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+        <set-variable variableName="ftp_passwd" value="${ftpSource.password}" doc:name="Set ftp_passwd"/>
+        <set-variable variableName="ftp_password" value="#[java.net.URLDecoder.decode(flowVars.ftp_passwd)]" doc:name="Set ftp_password (ftp_passwd decoded)"/>
+        <foreach collection="#[payload.sip_package]" doc:name="For Each item in sip">
+            <logger message="[#[flowVars.file.pid]]: Sending delete request to &quot;mq:delete_requests&quot;" level="INFO" doc:name="Log: Sending delete request"/>
+            <scripting:component doc:name="create delete request">
+                <scripting:script engine="Groovy"><![CDATA[def deleteRequest = [:];
+
+deleteRequest.host = flowVars.file.host;
+deleteRequest.file_path = payload.file_path;
+deleteRequest.file_name = payload.file_name;
+deleteRequest.username = '${ftpSource.username}';
+deleteRequest.password = flowVars.ftp_password;
+
+return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scripting:script>
+            </scripting:component>
+            <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
+        </foreach>
+    </flow>
 </mule>

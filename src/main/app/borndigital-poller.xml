@@ -140,4 +140,5 @@ where id = #[payload.id]]]></db:parameterized-query>
             <logger message="Catch error" level="INFO" doc:name="Catch"/>
         </catch-exception-strategy>
     </flow>
+    <flow name="MessageEventsFlow"/>
 </mule>

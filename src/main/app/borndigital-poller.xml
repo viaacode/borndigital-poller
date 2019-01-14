@@ -53,6 +53,9 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
                             <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
+                            <scripting:component doc:name="create status message">
+                                <scripting:script engine="Groovy"/>
+                            </scripting:component>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[select *
 from sips

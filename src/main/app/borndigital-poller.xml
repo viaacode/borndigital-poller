@@ -51,8 +51,8 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                     <choice doc:name="Is preingest_status OK?">
                         <when expression="#[payload.preingest_status.equals('OK')]">
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
-                            <set-variable variableName="file" value="#[payload]" doc:name="Set file"/>
-                            <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="AMQP-0-9"/>
+                            <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
+                            <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[select *
 from sips

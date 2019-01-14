@@ -68,7 +68,7 @@ where external_id = #[payload.pid]]]></db:parameterized-query>
                                         <when expression="#[flowVars.file.retry_count == 0 || (System.currentTimeMillis() - flowVars.file.last_event_date.getTime()&gt;3600000)]">
                                             <logger message="[#[flowVars.file.pid]]: Last event MH happened after preingest" level="INFO" doc:name="Last event MH happened after preingest"/>
                                             <choice doc:name="Archived, deleted, or something else?">
-                                                <when expression="flowVars.mh_result.archive_status.equals('on_disk')]">
+                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_disk')]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is archived on disk" level="INFO" doc:name="Essence is archived on disk"/>
                                                     <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="HandlingEssenceOnTapeOrDiskFlowRef"/>
                                                 </when>
@@ -89,9 +89,9 @@ where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('on_tape')]">
-                                                    <logger level="INFO" doc:name="Essence is on tape"/>
-                                                    <anypoint-mq:no-operation-selected config-ref="" doc:name="Anypoint MQ"/>
-                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="Flow Reference"/>
+                                                    <logger level="INFO" doc:name="Essence is on tape" message="[#[flowVars.file.pid]]: Essence is archived on tape"/>
+                                                    <anypoint-mq:publish config-ref="" doc:name="On Tape Message Queue" destination=""/>
+                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="HandlingEssenceOnTapeOrDiskFlowRef"/>
                                                 </when>
                                                 <otherwise>
                                                     <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>

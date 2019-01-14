@@ -52,7 +52,7 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                         <when expression="#[payload.preingest_status.equals('OK')]">
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
-                            <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
+                            <logger message="[#[flowVars.file.pid]]: Sending status message to Connector Poller" level="INFO" doc:name="Log: sending status message"/>
                             <scripting:component doc:name="create status message">
                                 <scripting:script engine="Groovy"><![CDATA[def statusMessage = [:];
 
@@ -65,6 +65,7 @@ statusMessage.preingest_status = flowVars.file.preingest_status;
 
 return new groovy.json.JsonBuilder(statusMessage).toPrettyString();]]></scripting:script>
                             </scripting:component>
+                            <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[select *
 from sips

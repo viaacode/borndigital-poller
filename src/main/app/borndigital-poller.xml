@@ -54,7 +54,16 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
                             <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
                             <scripting:component doc:name="create status message">
-                                <scripting:script engine="Groovy"/>
+                                <scripting:script engine="Groovy"><![CDATA[def statusMessage = [:];
+
+statusMessage.pid = flowVars.file.pid;
+statusMessage.organisation = flowVars.file.organisation;
+statusMessage.archive_status = flowVars.file.archive_status;
+statusMessage.is_deleted = flowVars.file.is_deleted;
+statusMessage.comment = flowVars.file.comment;
+statusMessage.preingest_status = flowVars.file.preingest_status;
+
+return new groovy.json.JsonBuilder(statusMessage).toPrettyString();]]></scripting:script>
                             </scripting:component>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[select *

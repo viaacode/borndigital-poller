@@ -95,7 +95,7 @@ return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scriptin
                                                         <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorDelete" doc:name="Send message to delete_requests"/>
                                                     </foreach>
                                                 </when>
-                                                <when expression="flowVars.mh_result.archive_status.equals('on_disk')]">
+                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_disk')]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is archived on disk" level="INFO" doc:name="Essence is archived on disk"/>
                                                     <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="HandlingEssenceOnTapeOrDiskFlowRef"/>
                                                 </when>
@@ -116,9 +116,9 @@ where id = #[flowVars.file.id]]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('on_tape')]">
-                                                    <logger level="INFO" doc:name="Essence is on tape"/>
-                                                    <anypoint-mq:no-operation-selected config-ref="" doc:name="Anypoint MQ"/>
-                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="Flow Reference"/>
+                                                    <logger level="INFO" doc:name="Essence is on tape" message="[#[flowVars.file.pid]]: Essence is archived on tape"/>
+                                                    <anypoint-mq:publish config-ref="" doc:name="On Tape Message Queue" destination=""/>
+                                                    <flow-ref name="HandlingEssenceOnTapeOrDisk" doc:name="HandlingEssenceOnTapeOrDiskFlowRef"/>
                                                 </when>
                                                 <otherwise>
                                                     <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>

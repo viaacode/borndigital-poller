@@ -52,9 +52,11 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                         <when expression="#[payload.preingest_status.equals('OK')]">
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
-                            <logger message="[#[flowVars.file.pid]]: Sending status message to Connector Poller" level="INFO" doc:name="Log: sending status message"/>
-                            <scripting:component doc:name="create status message">
-                                <scripting:script engine="Groovy"><![CDATA[def builder = new groovy.json.JsonBuilder()
+                            <choice doc:name="Is pid on tape?">
+                                <when expression="#[flowVars.file.arhive_status.equals('on_tape')]">
+                                    <logger message="[#[flowVars.file.pid]]: Sending status message to Connector Poller" level="INFO" doc:name="Log: Archived on tape, sending status message"/>
+                                    <scripting:component doc:name="create status message">
+                                        <scripting:script engine="Groovy"><![CDATA[def builder = new groovy.json.JsonBuilder()
 
 def root = builder.statusMessage {
     id 'flowVars.file.id'
@@ -79,13 +81,17 @@ def root = builder.statusMessage {
 }
 
 return builder.toPrettyString()]]></scripting:script>
-                            </scripting:component>
-                            <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
-                            <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
-                                <db:parameterized-query><![CDATA[select *
+                                    </scripting:component>
+                                    <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
+                                </when>
+                                <otherwise>
+                                    <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
+                                        <db:parameterized-query><![CDATA[select *
 from sips
 where external_id = #[payload.pid]]]></db:parameterized-query>
-                            </db:select>
+                                    </db:select>
+                                </otherwise>
+                            </choice>
                             <choice doc:name="Pid found in MH?">
                                 <when expression="#[payload.size()==0]">
                                     <logger message="[#[flowVars.file.pid]]: pid not found, do nothing" level="INFO" doc:name="Pid not found, do nothing"/>

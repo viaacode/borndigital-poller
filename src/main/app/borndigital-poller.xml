@@ -190,7 +190,7 @@ return builder.toPrettyString()
             </otherwise>
         </choice>
         <catch-exception-strategy doc:name="Catch Exception Strategy">
-            <logger message="Failed to send status message to borndigital_poller_events" level="INFO" doc:name="Log: Failed to send status message to borndigital_poller_events"/>
+            <logger message="Failed to send status message to borndigital_poller_events" level="ERROR" doc:name="Log: Failed to send status message to borndigital_poller_events"/>
         </catch-exception-strategy>
     </flow>
 </mule>

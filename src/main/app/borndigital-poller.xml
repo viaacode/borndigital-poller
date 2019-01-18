@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -11,21 +11,22 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
-http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
     <context:property-placeholder properties-ref="YamlProperties"/>
     <spring:beans>
         <spring:bean id="YamlProperties" name="YamlProperties" class="org.springframework.beans.factory.config.YamlPropertiesFactoryBean">
             <spring:property name="resources" value="classpath:${mule.env}.yaml"/>
         </spring:bean>
     </spring:beans>
-    <amqp:connector name="RabbitMQConnectorPoller" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector">
+    <amqp:connector name="RabbitMQConnectorPoller" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector" ackMode="MANUAL">
         <reconnect-forever/>
     </amqp:connector>
     <db:generic-config name="borndigital" url="jdbc:postgresql://${db.host}:${db.port}/${db.database}?password=${db.password}&amp;user=${db.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
     <db:generic-config name="mediahaven" url="jdbc:postgresql://${db.zeticon.host}:${db.zeticon.port}/${db.zeticon.database}?password=${db.zeticon.password}&amp;user=${db.zeticon.username}" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
     <amqp:connector name="RabbitMQConnectorDelete" validateConnections="true" host="${rabbit.host}" port="${rabbit.port}" username="${rabbit.username}" password="${rabbit.password}" prefetchCount="1" numberOfChannels="1" doc:name="AMQP-0-9 Connector"/>
     <flow name="Main" processingStrategy="synchronous">
-        <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
+        <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000"  connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
         <logger message="Start polling status of files" level="INFO" doc:name="Start polling status of files"/>
         <db:select config-ref="borndigital" doc:name="Fetch borndigital_ingest_choice_status">
             <db:parameterized-query><![CDATA[select *
@@ -52,52 +53,18 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                         <when expression="#[payload.preingest_status.equals('OK')]">
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
-                            <choice doc:name="Is pid on tape?">
-                                <when expression="#[flowVars.file.arhive_status.equals('on_tape')]">
-                                    <logger message="[#[flowVars.file.pid]]: Sending status message to Connector Poller" level="INFO" doc:name="Log: Archived on tape, sending status message"/>
-                                    <scripting:component doc:name="create status message">
-                                        <scripting:script engine="Groovy"><![CDATA[def builder = new groovy.json.JsonBuilder()
-
-def root = builder.statusMessage {
-    id 'flowVars.file.id'
-    local_id 'flowVars.file.local_id'
-    md5 'flowVars.file.md5'
-    pid 'flowVars.file.pid'
-    organisation 'flowVars.file.organisation'
-    filename 'flowVars.file.filename'
-    filepath 'flowVars.file.filepath'
-    host 'flowVars.file.host'
-    archive_status (
-        previous: 'flowVars.file.preingest_status',
-        current: 'flowVars.file.archive_status'
-    )
-    on_tape 'flowVars.file.on_tape'
-    is_deleted 'flowVars.file.is_deleted'
-    comment 'flowVars.file.comment'
-    last_event_date 'flowVars.file.last_event_date'
-    retry_count 'flowVars.file.retry_count'
-    reported 'flowVars.file.reported'
-    organisation_id 'flowVars.file.organisation_id'
-}
-
-return builder.toPrettyString()]]></scripting:script>
-                                    </scripting:component>
-                                    <amqp:outbound-endpoint responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
-                                </when>
-                                <otherwise>
-                                    <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
-                                        <db:parameterized-query><![CDATA[select *
+                            <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
+                                <db:parameterized-query><![CDATA[select *
 from sips
 where external_id = #[payload.pid]]]></db:parameterized-query>
-                                    </db:select>
-                                </otherwise>
-                            </choice>
+                            </db:select>
                             <choice doc:name="Pid found in MH?">
                                 <when expression="#[payload.size()==0]">
                                     <logger message="[#[flowVars.file.pid]]: pid not found, do nothing" level="INFO" doc:name="Pid not found, do nothing"/>
                                 </when>
                                 <otherwise>
                                     <set-variable variableName="mh_result" value="#[payload[0]]" doc:name="Set mh_result"/>
+                                    <flow-ref name="CheckArchive_statusFlow" doc:name="CheckArchive_statusFlowRef"/>
                                     <set-variable variableName="fragment_id" value="#[flowVars.mh_result.fragment_id]" doc:name="Set fragment_id"/>
                                     <choice doc:name="Check last status of MH when this is not a retry OR preingest happened one hour ago">
                                         <when expression="#[flowVars.file.retry_count == 0 || (System.currentTimeMillis() - flowVars.file.last_event_date.getTime()&gt;3600000)]">
@@ -127,7 +94,7 @@ deleteRequest.password = flowVars.ftp_password;
 
 return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scripting:script>
                                                         </scripting:component>
-                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
+                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000"  connector-ref="RabbitMQConnectoDelete" doc:name="Send message to delete_requests"/>
                                                     </foreach>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
@@ -170,10 +137,60 @@ where id = #[payload.id]]]></db:parameterized-query>
             </otherwise>
         </choice>
         <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(600000);]]></expression-component>
-        <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
+        <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000"  connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
         <amqp:acknowledge-message doc:name="AMQP-0-9 Acknowledge Message"/>
         <catch-exception-strategy doc:name="Catch Exception Strategy">
-            <logger message="Catch error" level="INFO" doc:name="Catch"/>
+            <logger message="An error occurred during the poll: #[exception.getMessage()]" level="ERROR" doc:name="Catch"/>
+            <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000" exchange-pattern="request-response" connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
+        		<amqp:acknowledge-message doc:name="AMQP-0-9 Acknowledge Message"/>
+        </catch-exception-strategy>
+    </flow>
+    <flow name="CheckArchive_statusFlow">
+        <choice doc:name="Did archive_status change?">
+            <when expression="#[flowVars.file.archive_status.toLowerCase() != flowVars.mh_result.archive_status.toLowerCase()]">
+                <logger message="[#[flowVars.file.pid]]: Sending status message to Connector Poller" level="INFO" doc:name="Log: Archive status changed, sending status message"/>
+                <scripting:component doc:name="create status message">
+                    <scripting:script engine="Groovy"><![CDATA[def builder = new groovy.json.JsonBuilder()
+
+def root = builder {
+    "local_record" {
+        id flowVars.file.id
+        local_id flowVars.file.local_id
+        md5 flowVars.file.md5
+        pid flowVars.file.pid
+        organisation flowVars.file.organisation
+        filename flowVars.file.filename
+        filepath flowVars.file.filepath
+        host flowVars.file.host
+        is_deleted flowVars.file.is_deleted
+        comment flowVars.file.comment
+        last_event_date flowVars.file.last_event_date
+        retry_count flowVars.file.retry_count
+        reported flowVars.file.reported
+        organisation_id flowVars.file.organisation_id
+        }
+    "archive_status" {
+        previous flowVars.file.archive_status
+        current flowVars.mh_result.archive_status
+    }
+    "remote_record" {
+        pid flowVars.mh_result.external_id
+  		organisation flowVars.mh_result.organisation
+  		archive_status flowVars.mh_result.archive_status
+    }
+}
+
+return builder.toPrettyString()
+]]></scripting:script>
+                </scripting:component>
+                <amqp:outbound-endpoint exchangeName="borndigital_poller_events" queueName="borndigital_poller_events" routingKey="borndigital.poller.events" exchangeType="topic" queueDurable="true" responseTimeout="10000" mimeType="application/json" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
+            </when>
+            <otherwise>
+                <logger message="'archive_status' did not change" level="INFO" doc:name="Log: 'archive_status' did not change"/>
+            </otherwise>
+        </choice>
+        <catch-exception-strategy doc:name="Catch Exception Strategy">
+            <logger message="Failed to send status message to borndigital_poller_events" level="INFO" doc:name="Log: Failed to send status message to borndigital_poller_events"/>
         </catch-exception-strategy>
     </flow>
 </mule>

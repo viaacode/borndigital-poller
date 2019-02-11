@@ -1,22 +1,21 @@
 
 
+
 # Borndigital Poller
 
 ## Synopsis
 
-
-The Born Digital Poller gets a record from Rabbit MQ and will try to add the data to the database.
+The Borndigital Poller receives a token from the `borndigital_poller_token queue` and checks the `ingest_status` in the borndigital database. When the `pre-ingest status` is OK, the PID is searched in Mediahaven.
 If the data does not yet exist and has been added to the database, the Pid ID will be checked in Media Haven.
-The status of the Essence is then checked; has it been archived on tape or disk, has it been deleted or has it failed?
-If it is successfully archived on tape or disk, the Essence will be deleted and a message sent to Rabbit MQ.
+If the PID is found, the archive status is checked. If the archive status has changed, a message will be sent to the `borndigital_poller-events queue`. The status of the Essence is then checked; has it been archived on tape or disk, has it been deleted or has it failed? If it is successfully archived on tape or disk, the Essence will be deleted and a message sent to the `borndigital_poller_token`.
 
 
 ## Technical
 
 |Role              | Handle / username|
 | -------------    |--------------| 
-|Principal/Owner   | @VanCampJens | 
-|Wing(wo)man       | @maartends |
+|Principal/Owner   | [@VanCampJens](https://github.com/VanCampJens) | 
+|Wing(wo)man       | [@maartends](https://github.com/maartends) |
 
 
 ## Stack
@@ -28,7 +27,7 @@ If it is successfully archived on tape or disk, the Essence will be deleted and 
 ## Logging and monitoring
 
 #### Backend
-- Logging: file
+- /opt/mule/mule-CURRENT/logs/mule-${sys:domain}.log
 
 
 ## Deployment/Installation
@@ -48,8 +47,8 @@ If it is successfully archived on tape or disk, the Essence will be deleted and 
 #!/bin/bash
 ZIPFILE=$1
 SERVER=$2
-DEPLOYPATH="/opt/mule-community-standalone-3.9.0/apps"
-USERNAME="root"
+DEPLOYPATH="/opt/mule-ce-standalone-3.9.0/apps/"
+USERNAME="mule"
 
 if [ ! -f $ZIPFILE ]; then
         echo "$ZIPFILE does not exist! Exiting"
@@ -72,11 +71,11 @@ scp $ZIPFILE $USERNAME@$SERVER:$DEPLOYPATH
 ## Usage
 
 #### Examples
-The flow can be started via messages on the Borndigital Poller queue
+The flow can be started via messages on the `borndigital_poller_token queue`
 
 ### Troubleshooting
 
-If, for some reason, a message does not get asked (and, thus, the poller-flow halts):
+If, for some reason, a message does not get acked (and, thus, the poller-flow halts):
 
 - undeploy application (remove anchor file)
 - delete message (or purge queue)

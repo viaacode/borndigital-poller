@@ -83,6 +83,6 @@ If, for some reason, a message does not get acked (and, thus, the poller-flow ha
 - publish message on queue.
 
 
-### Diagram
+## Diagram
 
 ![BD-Poller_Seq_Diagram](diagrams/BD-Poller_Seq_Diagram.png)

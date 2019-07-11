@@ -175,21 +175,21 @@ def root = builder {
     }
     "remote_record" {
         pid flowVars.mh_result.external_id
-  		organisation flowVars.mh_result.organisation
-  		archive_status flowVars.mh_result.archive_status
-  		id 'flowVars.mh_result.id'
-        local_id 'flowVars.mh_result.local_id'
-        md5 'flowVars.mh_result.md5'
-        filename 'flowVars.mh_result.filename'
-        filepath 'flowVars.mh_result.filepath'
-        host 'flowVars.mh_result.host'
-        on_tape 'flowVars.mh_result.on_tape'
-        is_deleted 'flowVars.mh_result.is_deleted'
-        comment 'flowVars.file.comment'
-        last_event_date 'flowVars.mh_result.last_event_date'
-        retry_count 'flowVars.mh_result.retry_count'
-        reported 'flowVars.mh_result.reported'
-        organisation_id 'flowVars.mh_result.organisation_id'
+        organisation flowVars.mh_result.organisation
+        archive_status flowVars.mh_result.archive_status
+        id flowVars.mh_result.id
+        local_id flowVars.mh_result.local_id
+        md5 flowVars.mh_result.md5
+        filename flowVars.mh_result.filename
+        filepath flowVars.mh_result.filepath
+        host flowVars.mh_result.host
+        on_tape flowVars.mh_result.on_tape
+        is_deleted flowVars.mh_result.is_deleted
+        comment flowVars.file.comment
+        last_event_date flowVars.mh_result.last_event_date
+        retry_count flowVars.mh_result.retry_count
+        reported flowVars.mh_result.reported
+        organisation_id flowVars.mh_result.organisation_id
     }
 }
 

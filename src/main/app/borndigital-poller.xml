@@ -29,8 +29,8 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
         <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000"  connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
         <logger message="Start polling status of files" level="INFO" doc:name="Start polling status of files"/>
         <db:select config-ref="borndigital" doc:name="Fetch borndigital_ingest_choice_status">
-            <db:parameterized-query><![CDATA[select *
-from borndigital_ingest_status]]></db:parameterized-query>
+            <db:parameterized-query><![CDATA[SELECT *
+FROM borndigital_ingest_status;]]></db:parameterized-query>
         </db:select>
         <choice doc:name="When NOK, don't retry">
             <when expression="#[payload[0].status == 'NOK']">
@@ -54,9 +54,9 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                             <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
-                                <db:parameterized-query><![CDATA[select *
-from sips
-where external_id = #[payload.pid]]]></db:parameterized-query>
+                                <db:parameterized-query><![CDATA[SELECT *
+FROM sips
+WHERE external_id = #[payload.pid];]]></db:parameterized-query>
                             </db:select>
                             <choice doc:name="Pid found in MH?">
                                 <when expression="#[payload.size()==0]">
@@ -73,9 +73,14 @@ where external_id = #[payload.pid]]]></db:parameterized-query>
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('on_disk') || flowVars.mh_result.archive_status.equals('on_tape')]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is archived on tape or disk" level="INFO" doc:name="Essence is archived on tape or disk"/>
                                                     <db:update config-ref="borndigital" doc:name="Set archive_status OK, fragment_id">
-                                                        <db:parameterized-query><![CDATA[update sips
-set archive_status = 'OK', fragment_id = #[flowVars.fragment_id], comment = 'File is correct gearchiveerd', is_deleted = false, retry_count = 0, reported = false
-where id = #[flowVars.file.id]]]></db:parameterized-query>
+                                                        <db:parameterized-query><![CDATA[UPDATE sips
+SET archive_status = 'OK',
+    fragment_id = #[flowVars.fragment_id],
+    comment = 'File is correct gearchiveerd',
+    is_deleted = false,
+    retry_count = 0,
+    reported = false
+WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
                                                     </db:update>
                                                     <set-payload value="#[flowVars.file.message]" doc:name="Set Payload with message"/>
                                                     <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
@@ -100,17 +105,23 @@ return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scriptin
                                                 <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is deleted" level="INFO" doc:name="Essence is deleted"/>
                                                     <db:update config-ref="borndigital" doc:name="Essence is deleted">
-                                                        <db:parameterized-query><![CDATA[update sips
-set preingest_status = 'TODO', is_deleted = true, fragment_id = #[flowVars.fragment_id], comment = 'Essence has been deleted.'
-where id = #[flowVars.file.id]]]></db:parameterized-query>
+                                                        <db:parameterized-query><![CDATA[UPDATE sips
+SET preingest_status = 'TODO',
+    is_deleted = true,
+    fragment_id = #[flowVars.fragment_id],
+    comment = 'Essence has been deleted.'
+WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('failed')]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence has failed" level="INFO" doc:name="Essence has failed"/>
                                                     <db:update config-ref="borndigital" doc:name="Set to failed; mark as TODO to retry">
-                                                        <db:parameterized-query><![CDATA[update sips
-set preingest_status = 'TODO', is_deleted = false, fragment_id = #[flowVars.fragment_id], comment = 'Essence has failed to ingest'
-where id = #[flowVars.file.id]]]></db:parameterized-query>
+                                                        <db:parameterized-query><![CDATA[UPDATE sips
+SET preingest_status = 'TODO',
+    is_deleted = false,
+    fragment_id = #[flowVars.fragment_id],
+    comment = 'Essence has failed to ingest'
+WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
                                                     </db:update>
                                                 </when>
                                                 <otherwise>
@@ -127,9 +138,10 @@ where id = #[flowVars.file.id]]]></db:parameterized-query>
                         </when>
                         <otherwise>
                             <db:update config-ref="borndigital" doc:name="preingest failed; set as TODO to retry">
-                                <db:parameterized-query><![CDATA[update sips
-set "preingest_status" = 'TODO', comment = 'Preingest failed.'
-where id = #[payload.id]]]></db:parameterized-query>
+                                <db:parameterized-query><![CDATA[UPDATE sips
+SET "preingest_status" = 'TODO',
+    comment = 'Preingest failed.'
+WHERE id = #[payload.id];]]></db:parameterized-query>
                             </db:update>
                         </otherwise>
                     </choice>

@@ -87,7 +87,7 @@ WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
                                                     <set-variable variableName="ftp_passwd" value="${ftpSource.password}" doc:name="Set ftp_passwd"/>
                                                     <set-variable variableName="ftp_password" value="#[java.net.URLDecoder.decode(flowVars.ftp_passwd)]" doc:name="Set ftp_password (ftp_passwd decoded)"/>
                                                     <foreach collection="#[payload.sip_package]" doc:name="For Each item in sip">
-                                                        <logger message="[#[flowVars.file.pid]]: Sending delete request to &quot;mq:delete_requests&quot;" level="INFO" doc:name="Log: Sending delete request"/>
+                                                        <logger message="[#[flowVars.file.pid]]: Sending delete request for #[payload.file_name] in #[payload.file_path]" level="INFO" doc:name="Log: Sending delete request"/>
                                                         <scripting:component doc:name="create delete request">
                                                             <scripting:script engine="Groovy"><![CDATA[def deleteRequest = [:];
 
@@ -211,11 +211,11 @@ return builder.toPrettyString()
                 <amqp:outbound-endpoint exchangeName="borndigital_poller_events" queueName="borndigital_poller_events" routingKey="borndigital.poller.events" exchangeType="topic" queueDurable="true" responseTimeout="10000" mimeType="application/json" connector-ref="RabbitMQConnectorPoller" doc:name="Send status message"/>
             </when>
             <otherwise>
-                <logger message="'archive_status' did not change" level="INFO" doc:name="Log: 'archive_status' did not change"/>
+                <logger message="[#[flowVars.file.pid]]: 'archive_status' did not change" level="INFO" doc:name="Log: 'archive_status' did not change"/>
             </otherwise>
         </choice>
         <catch-exception-strategy doc:name="Catch Exception Strategy">
-            <logger message="Failed to send status message to borndigital_poller_events" level="ERROR" doc:name="Log: Failed to send status message to borndigital_poller_events"/>
+            <logger message="[#[flowVars.file.pid]]: Failed to send status message to borndigital_poller_events" level="ERROR" doc:name="Log: Failed to send status message to borndigital_poller_events"/>
         </catch-exception-strategy>
     </flow>
 </mule>

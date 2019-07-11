@@ -51,7 +51,7 @@ ORDER BY last_event_date ASC;]]></db:parameterized-query>
                 <foreach doc:name="For Each">
                     <choice doc:name="Is preingest_status OK?">
                         <when expression="#[payload.preingest_status.equals('OK')]">
-                            <logger message="[#[payload.pid]]: preingest_status OK" level="INFO" doc:name="preingest_status OK"/>
+                            <logger message="[#[payload.pid]]: preingest_status OK" level="DEBUG" doc:name="preingest_status OK"/>
                             <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
                             <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
                                 <db:parameterized-query><![CDATA[SELECT *
@@ -68,7 +68,7 @@ WHERE external_id = #[payload.pid];]]></db:parameterized-query>
                                     <set-variable variableName="fragment_id" value="#[flowVars.mh_result.fragment_id]" doc:name="Set fragment_id"/>
                                     <choice doc:name="Check last status of MH when this is not a retry OR preingest happened one hour ago">
                                         <when expression="#[flowVars.file.retry_count == 0 || (System.currentTimeMillis() - flowVars.file.last_event_date.getTime()&gt;3600000)]">
-                                            <logger message="[#[flowVars.file.pid]]: Last event MH happened after preingest" level="INFO" doc:name="Last event MH happened after preingest"/>
+                                            <logger message="[#[flowVars.file.pid]]: Last event MH happened after preingest" level="DEBUG" doc:name="Last event MH happened after preingest"/>
                                             <choice doc:name="Archived, deleted, or something else?">
                                                 <when expression="#[flowVars.mh_result.archive_status.equals('on_disk') || flowVars.mh_result.archive_status.equals('on_tape')]">
                                                     <logger message="[#[flowVars.file.pid]]: Essence is archived on tape or disk" level="INFO" doc:name="Essence is archived on tape or disk"/>

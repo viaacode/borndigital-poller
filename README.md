@@ -2,17 +2,23 @@
 
 ## Synopsis
 
-The Borndigital Poller flow's purpose consists of checking the status of data in the Borndigital database, so that it can perform the right actions.
-You can use the diagram below as reference.
+Borndigital Poller responsability is deleting items on the ingest FTP-server.
+It checks the archive_status of all items in VIAA’s SIP’s table. Borndigital
+stores items in VIAA’s SIP’s table which Borndigital-Poller then queries to see
+which items it needs to check against MaM.
 
 ## Description
 
-The Borndigital Poller receives a token from the `borndigital_poller_token` queue and checks the `ingest_status` in the borndigital database. When the `pre-ingest_status` is OK, the PID is searched in Mediahaven.
-If the data does not yet exist and has been added to the database, the Pid ID will be checked in Mediahaven.
-If the PID is found, the archive status is checked. If the archive status has changed, a message will be sent to the `borndigital_poller_events` queue.
-The status of the essence is then checked; has it been archived on tape or disk, has it been deleted or has it failed?
-If it is successfully archived on tape or disk, the essence will be deleted and a message will be sent to the `borndigital_poller_token` queue so it can restart the flow.
-
+The Borndigital Poller receives a token from the `borndigital_poller_token`
+queue and checks the `ingest_status` in the borndigital database. When the
+`pre-ingest_status` is OK, the PID is searched in Mediahaven.  If the data does
+not yet exist and has been added to the database, the Pid ID will be checked in
+Mediahaven.  If the PID is found, the archive status is checked. If the archive
+status has changed, a message will be sent to the `borndigital_poller_events`
+queue.  The status of the essence is then checked; has it been archived on tape
+or disk, has it been deleted or has it failed?  If it is successfully archived
+on tape or disk, the essence will be deleted and a message will be sent to the
+`borndigital_poller_token` queue so it can restart the flow.
 
 ## Diagram
 
@@ -22,7 +28,7 @@ If it is successfully archived on tape or disk, the essence will be deleted and 
 
 |Role              | Handle / username|
 | -------------    |--------------| 
-|Principal/Owner   | [@VanCampJens](https://github.com/VanCampJens) | 
+|Principal/Owner   | [@RudolfDG](https://github.com/RudolfDG) | 
 |Wing(wo)man       | [@maartends](https://github.com/maartends) |
 
 

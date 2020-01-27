@@ -28,17 +28,8 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
     <flow name="Main" processingStrategy="synchronous">
         <amqp:inbound-endpoint queueName="borndigital_poller_token" numberOfChannels="1" responseTimeout="10000"  connector-ref="RabbitMQConnectorPoller" doc:name="Receive from borndigital_poller_token"/>
         <logger message="Start polling status of files" level="INFO" doc:name="Start polling status of files"/>
-        <db:select config-ref="borndigital" doc:name="Fetch borndigital_ingest_choice_status">
+        <db:select config-ref="borndigital" doc:name="Fetch records with preingest_status not null and archive_status null">
             <db:parameterized-query><![CDATA[SELECT *
-FROM borndigital_ingest_status;]]></db:parameterized-query>
-        </db:select>
-        <choice doc:name="When NOK, don't retry">
-            <when expression="#[payload[0].status == 'NOK']">
-                <logger message="borndigital_ingest_status: #[payload[0].status]" level="INFO" doc:name="Log: borndigital_ingest_status"/>
-            </when>
-            <otherwise>
-                <db:select config-ref="borndigital" doc:name="Fetch records with preingest_status not null and archive_status null">
-                    <db:parameterized-query><![CDATA[SELECT *
 FROM sips
 WHERE (preingest_status IS NOT NULL
        AND preingest_status != 'TODO'
@@ -46,33 +37,33 @@ WHERE (preingest_status IS NOT NULL
   AND (archive_status = 'in_progress'
        OR archive_status IS NULL)
 ORDER BY last_event_date ASC;]]></db:parameterized-query>
-                </db:select>
-                <logger message="Total nr of records to process: #[payload.size()]" level="INFO" doc:name="Log: Total nr of records to process"/>
-                <foreach doc:name="For Each">
-                    <choice doc:name="Is preingest_status OK?">
-                        <when expression="#[payload.preingest_status.equals('OK')]">
-                            <logger message="[#[payload.pid]]: preingest_status OK" level="DEBUG" doc:name="preingest_status OK"/>
-                            <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
-                            <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
-                                <db:parameterized-query><![CDATA[SELECT *
+        </db:select>
+        <logger message="Total nr of records to process: #[payload.size()]" level="INFO" doc:name="Log: Total nr of records to process"/>
+        <foreach doc:name="For Each">
+            <choice doc:name="Is preingest_status OK?">
+                <when expression="#[payload.preingest_status.equals('OK')]">
+                    <logger message="[#[payload.pid]]: preingest_status OK" level="DEBUG" doc:name="preingest_status OK"/>
+                    <set-variable variableName="file" value="#[payload]" doc:name="Set file and collect pid status"/>
+                    <db:select config-ref="mediahaven" doc:name="Check pid with Mediahaven monitoring">
+                        <db:parameterized-query><![CDATA[SELECT *
 FROM sips
 WHERE external_id = #[payload.pid];]]></db:parameterized-query>
-                            </db:select>
-                            <choice doc:name="Pid found in MH?">
-                                <when expression="#[payload.size()==0]">
-                                    <logger message="[#[flowVars.file.pid]]: pid not found, do nothing" level="INFO" doc:name="Pid not found, do nothing"/>
-                                </when>
-                                <otherwise>
-                                    <set-variable variableName="mh_result" value="#[payload[0]]" doc:name="Set mh_result"/>
-                                    <set-variable variableName="fragment_id" value="#[flowVars.mh_result.fragment_id]" doc:name="Set fragment_id"/>
-                                    <choice doc:name="Check last status of MH when this is not a retry OR preingest happened one hour ago">
-                                        <when expression="#[flowVars.file.retry_count == 0 || (System.currentTimeMillis() - flowVars.file.last_event_date.getTime()&gt;3600000)]">
-                                            <logger message="[#[flowVars.file.pid]]: Last event MH happened after preingest" level="DEBUG" doc:name="Last event MH happened after preingest"/>
-                                            <choice doc:name="Archived, deleted, or something else?">
-                                                <when expression="#[flowVars.mh_result.archive_status.equals('on_disk') || flowVars.mh_result.archive_status.equals('on_tape')]">
-                                                    <logger message="[#[flowVars.file.pid]]: Essence is archived on tape or disk" level="INFO" doc:name="Essence is archived on tape or disk"/>
-                                                    <db:update config-ref="borndigital" doc:name="Set archive_status OK, fragment_id">
-                                                        <db:parameterized-query><![CDATA[UPDATE sips
+                    </db:select>
+                    <choice doc:name="Pid found in MH?">
+                        <when expression="#[payload.size()==0]">
+                            <logger message="[#[flowVars.file.pid]]: pid not found, do nothing" level="INFO" doc:name="Pid not found, do nothing"/>
+                        </when>
+                        <otherwise>
+                            <set-variable variableName="mh_result" value="#[payload[0]]" doc:name="Set mh_result"/>
+                            <set-variable variableName="fragment_id" value="#[flowVars.mh_result.fragment_id]" doc:name="Set fragment_id"/>
+                            <choice doc:name="Check last status of MH when this is not a retry OR preingest happened one hour ago">
+                                <when expression="#[flowVars.file.retry_count == 0 || (System.currentTimeMillis() - flowVars.file.last_event_date.getTime()&gt;3600000)]">
+                                    <logger message="[#[flowVars.file.pid]]: Last event MH happened after preingest" level="DEBUG" doc:name="Last event MH happened after preingest"/>
+                                    <choice doc:name="Archived, deleted, or something else?">
+                                        <when expression="#[flowVars.mh_result.archive_status.equals('on_disk') || flowVars.mh_result.archive_status.equals('on_tape')]">
+                                            <logger message="[#[flowVars.file.pid]]: Essence is archived on tape or disk" level="INFO" doc:name="Essence is archived on tape or disk"/>
+                                            <db:update config-ref="borndigital" doc:name="Set archive_status OK, fragment_id">
+                                                <db:parameterized-query><![CDATA[UPDATE sips
 SET archive_status = 'OK',
     fragment_id = #[flowVars.fragment_id],
     comment = 'File is correct gearchiveerd',
@@ -80,15 +71,15 @@ SET archive_status = 'OK',
     retry_count = 0,
     reported = false
 WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
-                                                    </db:update>
-                                                    <set-payload value="#[flowVars.file.message]" doc:name="Set Payload with message"/>
-                                                    <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
-                                                    <set-variable variableName="ftp_passwd" value="${ftpSource.password}" doc:name="Set ftp_passwd"/>
-                                                    <set-variable variableName="ftp_password" value="#[java.net.URLDecoder.decode(flowVars.ftp_passwd)]" doc:name="Set ftp_password (ftp_passwd decoded)"/>
-                                                    <foreach collection="#[payload.sip_package]" doc:name="For Each item in sip">
-                                                        <logger message="[#[flowVars.file.pid]]: Sending delete request for #[payload.file_name] in #[payload.file_path]" level="INFO" doc:name="Log: Sending delete request"/>
-                                                        <scripting:component doc:name="create delete request">
-                                                            <scripting:script engine="Groovy"><![CDATA[def deleteRequest = [:];
+                                            </db:update>
+                                            <set-payload value="#[flowVars.file.message]" doc:name="Set Payload with message"/>
+                                            <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+                                            <set-variable variableName="ftp_passwd" value="${ftpSource.password}" doc:name="Set ftp_passwd"/>
+                                            <set-variable variableName="ftp_password" value="#[java.net.URLDecoder.decode(flowVars.ftp_passwd)]" doc:name="Set ftp_password (ftp_passwd decoded)"/>
+                                            <foreach collection="#[payload.sip_package]" doc:name="For Each item in sip">
+                                                <logger message="[#[flowVars.file.pid]]: Sending delete request for #[payload.file_name] in #[payload.file_path]" level="INFO" doc:name="Log: Sending delete request"/>
+                                                <scripting:component doc:name="create delete request">
+                                                    <scripting:script engine="Groovy"><![CDATA[def deleteRequest = [:];
 
 deleteRequest.host = flowVars.file.host;
 deleteRequest.file_path = payload.file_path;
@@ -97,56 +88,54 @@ deleteRequest.username = '${ftpSource.username}';
 deleteRequest.password = flowVars.ftp_password;
 
 return new groovy.json.JsonBuilder(deleteRequest).toPrettyString();]]></scripting:script>
-                                                        </scripting:component>
-                                                        <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000"  connector-ref="RabbitMQConnectorDelete" doc:name="Send message to delete_requests"/>
-                                                    </foreach>
-                                                </when>
-                                                <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
-                                                    <logger message="[#[flowVars.file.pid]]: Essence is deleted" level="INFO" doc:name="Essence is deleted"/>
-                                                    <db:update config-ref="borndigital" doc:name="Essence is deleted">
-                                                        <db:parameterized-query><![CDATA[UPDATE sips
+                                                </scripting:component>
+                                                <amqp:outbound-endpoint queueName="delete_requests" responseTimeout="10000"  connector-ref="RabbitMQConnectorDelete" doc:name="Send message to delete_requests"/>
+                                            </foreach>
+                                        </when>
+                                        <when expression="#[flowVars.mh_result.is_deleted &gt; 0]">
+                                            <logger message="[#[flowVars.file.pid]]: Essence is deleted" level="INFO" doc:name="Essence is deleted"/>
+                                            <db:update config-ref="borndigital" doc:name="Essence is deleted">
+                                                <db:parameterized-query><![CDATA[UPDATE sips
 SET preingest_status = 'TODO',
     is_deleted = true,
     fragment_id = #[flowVars.fragment_id],
     comment = 'Essence has been deleted.'
 WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
-                                                    </db:update>
-                                                </when>
-                                                <when expression="#[flowVars.mh_result.archive_status.equals('failed')]">
-                                                    <logger message="[#[flowVars.file.pid]]: Essence has failed" level="INFO" doc:name="Essence has failed"/>
-                                                    <db:update config-ref="borndigital" doc:name="Set to failed; mark as TODO to retry">
-                                                        <db:parameterized-query><![CDATA[UPDATE sips
+                                            </db:update>
+                                        </when>
+                                        <when expression="#[flowVars.mh_result.archive_status.equals('failed')]">
+                                            <logger message="[#[flowVars.file.pid]]: Essence has failed" level="INFO" doc:name="Essence has failed"/>
+                                            <db:update config-ref="borndigital" doc:name="Set to failed; mark as TODO to retry">
+                                                <db:parameterized-query><![CDATA[UPDATE sips
 SET preingest_status = 'TODO',
     is_deleted = false,
     fragment_id = #[flowVars.fragment_id],
     comment = 'Essence has failed to ingest'
 WHERE id = #[flowVars.file.id];]]></db:parameterized-query>
-                                                    </db:update>
-                                                </when>
-                                                <otherwise>
-                                                    <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>
-                                                </otherwise>
-                                            </choice>
+                                            </db:update>
                                         </when>
                                         <otherwise>
-                                            <expression-component doc:name="Do nothing"><![CDATA[//Does nothing]]></expression-component>
+                                            <logger message="[#[flowVars.file.pid]]: Do Nothing: mediahaven status = #[flowVars.mh_result.archive_status]" level="INFO" doc:name="Log: Do Nothing"/>
                                         </otherwise>
                                     </choice>
+                                </when>
+                                <otherwise>
+                                    <expression-component doc:name="Do nothing"><![CDATA[//Does nothing]]></expression-component>
                                 </otherwise>
                             </choice>
-                        </when>
-                        <otherwise>
-                            <db:update config-ref="borndigital" doc:name="preingest failed; set as TODO to retry">
-                                <db:parameterized-query><![CDATA[UPDATE sips
+                        </otherwise>
+                    </choice>
+                </when>
+                <otherwise>
+                    <db:update config-ref="borndigital" doc:name="preingest failed; set as TODO to retry">
+                        <db:parameterized-query><![CDATA[UPDATE sips
 SET "preingest_status" = 'TODO',
     comment = 'Preingest failed.'
 WHERE id = #[payload.id];]]></db:parameterized-query>
-                            </db:update>
-                        </otherwise>
-                    </choice>
-                </foreach>
-            </otherwise>
-        </choice>
+                    </db:update>
+                </otherwise>
+            </choice>
+        </foreach>
         <expression-component doc:name="Sleep"><![CDATA[Thread.sleep(600000);]]></expression-component>
         <amqp:outbound-endpoint queueName="borndigital_poller_token" responseTimeout="10000"  connector-ref="RabbitMQConnectorPoller" doc:name="Send to borndigital_poller_token"/>
         <amqp:acknowledge-message doc:name="AMQP-0-9 Acknowledge Message"/>

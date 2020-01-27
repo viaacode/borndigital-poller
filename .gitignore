@@ -1,31 +1,45 @@
+#######################################################################
+#
+#  Mule.gitignore
+#
+#  .gitignore template file for Mule projects within VIAA.
+#  
+#######################################################################
+
+# -------------------------------------------------- #
+# Custom additions, either project- or VIAA-specific #
+# -------------------------------------------------- #
+
+mule-app.sh
+
 # ------------------------------------------------------------------------------ #
 # Java defaults (https://github.com/github/gitignore/blob/master/Java.gitignore) #
 # ------------------------------------------------------------------------------ #
+# -----Package Files----- #
+    
 *.class
-
-# Package Files #
 *.jar
 *.war
 *.ear
 
+
 # ------------------------------------------------------------------------------------------- #
 # Eclipse-specific (https://github.com/github/gitignore/blob/master/Global/Eclipse.gitignore) #
 # ------------------------------------------------------------------------------------------- #
-*.pydevproject
+
 .metadata
-bin/**
-tmp/**
-tmp/**/*
+.settings/
+.loadpath
+*.pydevproject
 *.tmp
 *.bak
 *.swp
 *~.nib
-local.properties
-*.properties
-*.yaml
-.settings/
-.loadpath
-# Recommended for Maven based projects 
+bin/**
+tmp/**
+tmp/**/*
+
+# You may want to remove the sharp symbols here if you are using Maven
 .project
 .classpath
 
@@ -41,10 +55,38 @@ local.properties
 # PDT-specific
 .buildpath
 
+
 # --------------- #
 # Studio-specific #
 # --------------- #
+
 .studio/
 flows/
 target/
-src/main/api/.repository/ 
+**/*.mflow
+# Generated documentation
+assets/
+img/
+index.html
+
+
+# ------------- #
+# Mule-specific #
+# ------------- #
+
+staging.properties
+production.properties
+local.properties
+staging.y*ml
+production.y*ml
+local.y*ml
+catalog
+mappings
+src/main/app/mule-app.properties
+
+
+# -------------#
+# Mac-specific #
+# -------------#
+
+.DS_Store
